@@ -4,15 +4,16 @@ const tabs = document.querySelectorAll(".tab-btn");
 const panels = document.querySelectorAll(".tab-panel");
 
 const topicKeywords = {
-  Education: ["school", "study", "learn", "university", "teacher", "education"],
-  Technology: ["technology", "phone", "app", "internet", "online", "computer"],
+  Education: ["school", "study", "learn", "university", "teacher", "education", "class"],
+  Technology: ["technology", "phone", "app", "internet", "online", "computer", "ai"],
   Environment: ["environment", "climate", "pollution", "recycle", "green", "nature"],
-  Travel: ["travel", "trip", "journey", "holiday", "tour", "visit"],
-  Work: ["job", "work", "career", "office", "salary", "boss"],
-  Health: ["health", "exercise", "diet", "sleep", "mental", "fitness"],
+  Travel: ["travel", "trip", "journey", "holiday", "tour", "visit", "abroad"],
+  Work: ["job", "work", "career", "office", "salary", "boss", "company"],
+  Health: ["health", "exercise", "diet", "sleep", "mental", "fitness", "stress"],
+  Lifestyle: ["hobby", "music", "movie", "food", "shopping", "weekend", "friends"],
 };
 
-const speakingToolkit = {
+const toolkit = {
   fillers: ["Well,", "Honestly,", "To be fair,", "I mean,", "You know,"],
   phrases: [
     "to be honest",
@@ -21,6 +22,9 @@ const speakingToolkit = {
     "one thing I’ve noticed",
     "it makes a huge difference",
     "I’m really into",
+    "I ended up",
+    "it just feels right",
+    "that’s what works for me",
   ],
   collocations: [
     "heavy workload",
@@ -29,24 +33,50 @@ const speakingToolkit = {
     "strong impression",
     "social pressure",
     "time management",
+    "long-term impact",
+    "practical solution",
   ],
-  slang: ["kind of", "super handy", "a game-changer", "not my thing", "pretty chill"],
-  discourse: [
-    "From my point of view,",
-    "On the other hand,",
-    "From a broader perspective,",
+  slang: [
+    "kind of",
+    "super handy",
+    "a game-changer",
+    "not my thing",
+    "pretty chill",
+    "works like a charm",
+  ],
+  part3Markers: [
+    "Well, it really depends...",
+    "From a broader perspective...",
+    "If you look at it another way...",
     "That said,",
+    "On balance,",
+  ],
+  part2Links: [
+    "To start with",
+    "What stands out most is",
+    "The thing is",
+    "Another detail I remember is",
+    "Looking back",
+    "All in all",
   ],
 };
 
-function switchTab(targetId) {
-  tabs.forEach((btn) => btn.classList.toggle("active", btn.dataset.tab === targetId));
-  panels.forEach((panel) => panel.classList.toggle("active", panel.id === targetId));
+function randomPick(list, count) {
+  return [...list].sort(() => Math.random() - 0.5).slice(0, count);
 }
 
-tabs.forEach((btn) => {
-  btn.addEventListener("click", () => switchTab(btn.dataset.tab));
-});
+function escapeHtml(value) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function normalizePrompt(text) {
+  return text.trim().replace(/\s+/g, " ").replace(/\?+$/, "");
+}
 
 function detectTopic(text) {
   const lower = text.toLowerCase();
@@ -56,19 +86,166 @@ function detectTopic(text) {
   return "General";
 }
 
-function pickRandom(list, count) {
-  return [...list].sort(() => Math.random() - 0.5).slice(0, count);
+function generateLanguagePack() {
+  return {
+    phrases: randomPick(toolkit.phrases, 5),
+    collocations: randomPick(toolkit.collocations, 4),
+    slang: randomPick(toolkit.slang, 3),
+  };
 }
 
-function createList(items, title) {
+function renderList(title, items) {
+  return `<h4>${title}</h4><ul>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`;
+}
+
+function generatePart1(question) {
+  const q = normalizePrompt(question).toLowerCase();
+  const opener = randomPick(toolkit.fillers, 1)[0];
+
+  const band7 = `${opener} yes, generally. ${q} is part of my normal routine, so I keep it simple and realistic. I’m not perfect every day, but I stay consistent and that helps.`;
+  const band8 = `${opener} I’d say mostly yes, but it depends on the day. ${q} comes up quite naturally in my life, and I’ve learned to manage it in a way that feels sustainable. So overall, it’s positive, and I can give a quick example if needed.`;
+
+  return {
+    band7,
+    band8,
+    expansionIdeas: [
+      "Add a quick personal example from this week.",
+      "Compare now vs a few years ago.",
+      "Mention one challenge and how you deal with it.",
+    ],
+    ...generateLanguagePack(),
+  };
+}
+
+function generatePart2(cueCard) {
+  const prompt = normalizePrompt(cueCard);
+  const topic = detectTopic(prompt);
+
+  const intro7 = `I’m going to talk about ${prompt.toLowerCase()}.`;
+  const story7 = "It happened quite naturally, not as a big plan, and that made it more memorable.";
+  const details7 = "I remember where I was, who I was with, and a couple of small details that still feel vivid now.";
+  const reflection7 = "Looking back, it was meaningful because it reminded me to enjoy simple moments instead of overthinking everything.";
+
+  const intro8 = `I’d like to describe ${prompt.toLowerCase()}, because it genuinely left a lasting impression on me.`;
+  const story8 = "At first, I wasn’t sure what to expect, but once things got going, I felt a mix of excitement and nervousness.";
+  const details8 = "What really stayed with me was the atmosphere, the little reactions from people around me, and how quickly my mood changed during the experience.";
+  const reflection8 = "In hindsight, it was a turning point. Since then, I’ve approached similar situations with more confidence, flexibility, and gratitude.";
+
+  return {
+    topic,
+    structures: {
+      band7: { intro: intro7, story: story7, details: details7, reflection: reflection7 },
+      band8: { intro: intro8, story: story8, details: details8, reflection: reflection8 },
+    },
+    links: randomPick(toolkit.part2Links, 5),
+    vocabBank: randomPick(
+      [
+        "memorable occasion",
+        "vivid detail",
+        "mixed feelings",
+        "turning point",
+        "sense of achievement",
+        "special atmosphere",
+        "personal growth",
+        "lasting impression",
+      ],
+      6,
+    ),
+    ...generateLanguagePack(),
+  };
+}
+
+function generatePart3(question) {
+  const prompt = normalizePrompt(question);
+  const topic = detectTopic(prompt);
+
+  const band7 = [
+    "Well, it really depends on the context.",
+    `From one perspective, ${topic.toLowerCase()} brings clear practical benefits in everyday life, especially for convenience and access.`,
+    "From another perspective, it can create pressure or inequality if some people are left behind.",
+    "So my view is positive overall, but only when there is balance and fair support.",
+  ];
+
+  const band8 = [
+    "Well, it really depends, and I think we need to separate individual and social impacts.",
+    `At an individual level, ${topic.toLowerCase()} often improves efficiency, confidence, and opportunity almost immediately.`,
+    "However, at a broader level, the same trend can deepen social gaps unless policy and education keep pace.",
+    "So I’d argue the best approach is a balanced one: encourage progress, but build safeguards at the same time.",
+  ];
+
+  return {
+    topic,
+    question: prompt,
+    perspectives: [
+      "Perspective 1: benefits in daily life",
+      "Perspective 2: risks and long-term social effects",
+    ],
+    band7,
+    band8,
+    markers: randomPick(toolkit.part3Markers, 4),
+    ...generateLanguagePack(),
+  };
+}
+
+function buildPart1Html(result) {
   return `
-    <h4>${title}</h4>
-    <ul>${items.map((item) => `<li>${item}</li>`).join("")}</ul>
+    <div class="card">
+      <h3>Band 7 Answer</h3>
+      <p>${escapeHtml(result.band7)}</p>
+      <h3>Band 8 Answer</h3>
+      <p>${escapeHtml(result.band8)}</p>
+      ${renderList("Useful Phrases (5)", result.phrases)}
+      ${renderList("Collocations (4)", result.collocations)}
+      ${renderList("Spoken / Informal Expressions (3)", result.slang)}
+      ${renderList("Optional Expansion Ideas", result.expansionIdeas)}
+    </div>
   `;
 }
 
-function nowISO() {
-  return new Date().toISOString();
+function buildStructuredAnswer(structure) {
+  return `
+    <ul>
+      <li><strong>Introduction:</strong> ${escapeHtml(structure.intro)}</li>
+      <li><strong>Story / Description:</strong> ${escapeHtml(structure.story)}</li>
+      <li><strong>Details:</strong> ${escapeHtml(structure.details)}</li>
+      <li><strong>Reflection / Feeling:</strong> ${escapeHtml(structure.reflection)}</li>
+    </ul>
+  `;
+}
+
+function buildPart2Html(result) {
+  return `
+    <div class="card">
+      <h3><span class="badge part">Part 2</span><span class="badge topic">${escapeHtml(result.topic)}</span></h3>
+      <h4>Band 7 Sample (Structured)</h4>
+      ${buildStructuredAnswer(result.structures.band7)}
+      <h4>Band 8 Sample (Structured)</h4>
+      ${buildStructuredAnswer(result.structures.band8)}
+      ${renderList("Fluency Linking Phrases", result.links)}
+      ${renderList("Topic Vocabulary Bank", result.vocabBank)}
+      ${renderList("Useful Phrases (5)", result.phrases)}
+      ${renderList("Collocations (4)", result.collocations)}
+      ${renderList("Spoken / Informal Expressions (3)", result.slang)}
+    </div>
+  `;
+}
+
+function buildPart3Html(result) {
+  return `
+    <div class="card">
+      <h3><span class="badge part">Part 3</span><span class="badge topic">${escapeHtml(result.topic)}</span></h3>
+      <p><strong>Question:</strong> ${escapeHtml(result.question)}</p>
+      ${renderList("Multi-angle Discussion", result.perspectives)}
+      <h4>Band 7 Version</h4>
+      <p>${escapeHtml(result.band7.join(" "))}</p>
+      <h4>Band 8 Version</h4>
+      <p>${escapeHtml(result.band8.join(" "))}</p>
+      ${renderList("Native-like Discourse Markers", result.markers)}
+      ${renderList("Useful Phrases (5)", result.phrases)}
+      ${renderList("Collocations (4)", result.collocations)}
+      ${renderList("Spoken / Informal Expressions (3)", result.slang)}
+    </div>
+  `;
 }
 
 function loadNotebook() {
@@ -79,186 +256,52 @@ function loadNotebook() {
   }
 }
 
-function saveNotebook(items) {
-  localStorage.setItem(storageKey, JSON.stringify(items));
-}
-
-function appendNotebook(entry) {
-  const items = loadNotebook();
-  items.unshift(entry);
-  saveNotebook(items);
-  renderNotebook();
-}
-
-function baseLanguagePack() {
-  return {
-    phrases: pickRandom(speakingToolkit.phrases, 5),
-    collocations: pickRandom(speakingToolkit.collocations, 4),
-    slang: pickRandom(speakingToolkit.slang, 3),
-  };
-}
-
-function generatePart1(question) {
-  const opener = pickRandom(speakingToolkit.fillers, 1)[0];
-  const naturalAnswer = `${opener} I’d say yes, mostly. In my daily life, ${question
-    .replace("?", "")
-    .toLowerCase()} comes up quite often, so I try to keep it simple and consistent. It’s not perfect every day, but it works for me.`;
-
-  const expansion = [
-    "Give one quick personal example from this week.",
-    "Add a contrast: what you liked before vs now.",
-    "Mention one challenge and how you deal with it.",
-  ];
-
-  return {
-    answer: naturalAnswer,
-    ...baseLanguagePack(),
-    expansion,
-  };
-}
-
-function generatePart2(cueCard) {
-  const topic = detectTopic(cueCard);
-  const commonStory = `I’m going to talk about ${cueCard
-    .replace("Describe", "a time when I")
-    .replace("?", "")}. The first time was a bit unexpected, but it left a strong impression on me.`;
-
-  const band7 = `${commonStory} I remember the main details clearly: where it happened, who was there, and why it mattered. I kept things simple, stayed calm, and just focused on enjoying the moment. Looking back, it was meaningful because it taught me to appreciate small experiences instead of overthinking everything.`;
-
-  const band8 = `${commonStory} What made it special was the mix of emotions at the time—part excitement, part uncertainty. As the situation developed, I became more aware of the little details, like the atmosphere and people’s reactions. In hindsight, it was a real turning point because it changed how I approach similar situations now: with more confidence, flexibility, and gratitude.`;
-
-  return {
-    topic,
-    band7,
-    band8,
-    links: [
-      "To start with",
-      "What stands out most is...",
-      "The thing is...",
-      "Looking back,",
-      "All in all,",
-    ],
-    vocabBank: pickRandom(
-      [
-        "memorable occasion",
-        "vivid detail",
-        "mixed feelings",
-        "turning point",
-        "sense of achievement",
-        "keep the momentum",
-      ],
-      6,
-    ),
-    ...baseLanguagePack(),
-  };
-}
-
-function generatePart3(question) {
-  const topic = detectTopic(question);
-  const p1 = "Well, it really depends on the context.";
-  const p2 = "From a broader perspective, there are both benefits and trade-offs.";
-
-  const band7 = `${p1} On one side, ${topic.toLowerCase()} can improve people’s lives in practical ways, especially when access and cost are reasonable. On the other side, there can be pressure, inequality, or unintended effects, so I think balance is key.`;
-
-  const band8 = `${p1} ${p2} If we look at individuals, the impact is often immediate and personal, like convenience or better opportunities. However, at a social level, the same trend may widen gaps between different groups. That’s why I’d argue for smart policies and personal responsibility at the same time.`;
-
-  return {
-    topic,
-    perspectives: ["Individual-level impact", "Society-level impact"],
-    band7,
-    band8,
-    markers: pickRandom(speakingToolkit.discourse, 4),
-    ...baseLanguagePack(),
-  };
-}
-
-function renderPart1Output(result) {
-  return `
-    <div class="card">
-      <h3>Natural Short Answer</h3>
-      <p>${result.answer}</p>
-      ${createList(result.phrases, "Useful Phrases (5)")}
-      ${createList(result.collocations, "Collocations (4)")}
-      ${createList(result.slang, "Spoken / Informal Expressions (3)")}
-      ${createList(result.expansion, "Optional Follow-up Ideas")}
-    </div>
-  `;
-}
-
-function renderPart2Output(result) {
-  return `
-    <div class="card">
-      <h3><span class="badge part">Part 2</span><span class="badge topic">${result.topic}</span></h3>
-      <h4>Band 7 Sample</h4>
-      <p>${result.band7}</p>
-      <h4>Band 8 Sample</h4>
-      <p>${result.band8}</p>
-      ${createList(result.links, "Fluency Linking Phrases")}
-      ${createList(result.vocabBank, "Topic Vocabulary Bank")}
-      ${createList(result.phrases, "Useful Phrases (5)")}
-      ${createList(result.collocations, "Collocations (4)")}
-      ${createList(result.slang, "Spoken / Informal Expressions (3)")}
-    </div>
-  `;
-}
-
-function renderPart3Output(result) {
-  return `
-    <div class="card">
-      <h3><span class="badge part">Part 3</span><span class="badge topic">${result.topic}</span></h3>
-      ${createList(result.perspectives, "Multi-Angle Discussion")}
-      <h4>Band 7 Version</h4>
-      <p>${result.band7}</p>
-      <h4>Band 8 Version</h4>
-      <p>${result.band8}</p>
-      ${createList(result.markers, "Native-like Discourse Markers")}
-      ${createList(result.phrases, "Useful Phrases (5)")}
-      ${createList(result.collocations, "Collocations (4)")}
-      ${createList(result.slang, "Spoken / Informal Expressions (3)")}
-    </div>
-  `;
+function saveNotebook(entries) {
+  localStorage.setItem(storageKey, JSON.stringify(entries));
 }
 
 function saveGenerated(part, input, result, htmlPreview) {
-  const entry = {
+  const entries = loadNotebook();
+  entries.unshift({
     id: crypto.randomUUID(),
     part,
     topic: detectTopic(input),
     input,
     result,
     htmlPreview,
-    createdAt: nowISO(),
-  };
-  appendNotebook(entry);
+    createdAt: new Date().toISOString(),
+  });
+  saveNotebook(entries);
+  renderNotebook();
 }
 
 function renderNotebook() {
   const search = document.querySelector("#search-input").value.trim().toLowerCase();
   const filter = document.querySelector("#filter-part").value;
+  const out = document.querySelector("#notebook-output");
 
-  const container = document.querySelector("#notebook-output");
-  const items = loadNotebook().filter((entry) => {
+  const filtered = loadNotebook().filter((entry) => {
     const byPart = filter === "all" || String(entry.part) === filter;
-    const blob = `${entry.input} ${JSON.stringify(entry.result)}`.toLowerCase();
-    const bySearch = !search || blob.includes(search);
+    const bySearch =
+      !search || `${entry.input} ${entry.topic} ${JSON.stringify(entry.result)}`.toLowerCase().includes(search);
     return byPart && bySearch;
   });
 
-  if (items.length === 0) {
-    container.innerHTML = "<p class='meta'>No notebook items match your filter.</p>";
+  if (!filtered.length) {
+    out.innerHTML = "<p class='meta'>No notebook items match your filter.</p>";
     return;
   }
 
-  container.innerHTML = items
+  out.innerHTML = filtered
     .map(
       (entry) => `
       <div class="card">
         <div>
           <span class="badge part">Part ${entry.part}</span>
-          <span class="badge topic">${entry.topic}</span>
+          <span class="badge topic">${escapeHtml(entry.topic)}</span>
         </div>
         <p class="meta">Saved: ${new Date(entry.createdAt).toLocaleString()}</p>
-        <p><strong>Question / Prompt:</strong> ${entry.input}</p>
+        <p><strong>Question / Prompt:</strong> ${escapeHtml(entry.input)}</p>
         <details>
           <summary>Reuse expressions and answer content</summary>
           ${entry.htmlPreview}
@@ -269,13 +312,21 @@ function renderNotebook() {
     .join("");
 }
 
-function bindGenerateButtons() {
+function setupTabs() {
+  tabs.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      tabs.forEach((tab) => tab.classList.toggle("active", tab === btn));
+      panels.forEach((panel) => panel.classList.toggle("active", panel.id === btn.dataset.tab));
+    });
+  });
+}
+
+function setupActions() {
   document.querySelector("#part1-generate").addEventListener("click", () => {
     const input = document.querySelector("#part1-input").value.trim();
     if (!input) return;
-
     const result = generatePart1(input);
-    const html = renderPart1Output(result);
+    const html = buildPart1Html(result);
     document.querySelector("#part1-output").innerHTML = html;
     saveGenerated(1, input, result, html);
   });
@@ -283,9 +334,8 @@ function bindGenerateButtons() {
   document.querySelector("#part2-generate").addEventListener("click", () => {
     const input = document.querySelector("#part2-input").value.trim();
     if (!input) return;
-
     const result = generatePart2(input);
-    const html = renderPart2Output(result);
+    const html = buildPart2Html(result);
     document.querySelector("#part2-output").innerHTML = html;
     saveGenerated(2, input, result, html);
   });
@@ -293,15 +343,12 @@ function bindGenerateButtons() {
   document.querySelector("#part3-generate").addEventListener("click", () => {
     const input = document.querySelector("#part3-input").value.trim();
     if (!input) return;
-
     const result = generatePart3(input);
-    const html = renderPart3Output(result);
+    const html = buildPart3Html(result);
     document.querySelector("#part3-output").innerHTML = html;
     saveGenerated(3, input, result, html);
   });
-}
 
-function bindNotebookControls() {
   document.querySelector("#search-input").addEventListener("input", renderNotebook);
   document.querySelector("#filter-part").addEventListener("change", renderNotebook);
   document.querySelector("#clear-notebook").addEventListener("click", () => {
@@ -310,6 +357,6 @@ function bindNotebookControls() {
   });
 }
 
-bindGenerateButtons();
-bindNotebookControls();
+setupTabs();
+setupActions();
 renderNotebook();

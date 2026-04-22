@@ -1,26 +1,32 @@
 # IELTS Speaking Corpus
 
-A lightweight web app for generating natural spoken-style IELTS speaking answers with a built-in notebook memory system.
+A lightweight web app for practicing IELTS Speaking with natural spoken-style answers (not essay-style), clear Band 7 vs Band 8 distinctions, and a searchable notebook.
 
-## Features
+## What this app does
 
-- **4 independent modules**
-  - Speaking Part 1 (short personal answers)
-  - Speaking Part 2 (cue card with Band 7 + Band 8 samples)
-  - Speaking Part 3 (discussion with multi-angle reasoning)
-  - Notebook (saved prompts, answers, vocabulary, and reusable expressions)
-- **IELTS-aligned output strategy**
-  - Spoken-style (not essay-like)
-  - Band 7 vs Band 8 distinction
-  - Useful phrases, collocations, and informal expressions
-- **Notebook tools**
-  - Auto-save generated outputs
-  - Search by keyword
-  - Filter by speaking part
+- **Speaking Part 1**
+  - Generates short, direct, casual answers
+  - Includes Band 7 and Band 8 versions
+  - Adds phrases, collocations, slang/informal expressions, and expansion ideas
+
+- **Speaking Part 2**
+  - Generates structured cue-card responses for both Band 7 and Band 8
+  - Uses the required flow: Introduction → Story/Description → Details → Reflection/Feeling
+  - Adds linking phrases and topic vocabulary bank
+
+- **Speaking Part 3**
+  - Generates discussion answers with two perspectives and clear justification
+  - Includes Band 7 and Band 8 versions
+  - Adds native-like discourse markers
+
+- **Notebook (Memory System)**
+  - Automatically saves generated prompts + outputs
+  - Organizes by detected topic and speaking part
+  - Supports keyword search and part filtering
 
 ## Run locally
 
-Because this is a static app, you can open `index.html` directly in a browser, or run a local server:
+Open `index.html` directly in your browser, or run:
 
 ```bash
 python3 -m http.server 8000
