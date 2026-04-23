@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>IELTS Speaking Corpus</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header>
+      <h1>🧠 IELTS Speaking Corpus</h1>
+      <p>Natural spoken English practice aligned with IELTS Speaking criteria.</p>
+    </header>
+
+    <main>
+      <nav class="tabs" aria-label="App sections">
+        <button class="tab-btn active" data-tab="part1">Speaking Part 1</button>
+        <button class="tab-btn" data-tab="part2">Speaking Part 2</button>
+        <button class="tab-btn" data-tab="part3">Speaking Part 3</button>
+        <button class="tab-btn" data-tab="notebook">Notebook</button>
+      </nav>
+
+      <section id="part1" class="tab-panel active">
+        <h2>Part 1 — Short Personal Answers</h2>
+        <p>Paste a typical Part 1 question and get short, natural spoken responses.</p>
+        <label for="part1-input">Question</label>
+        <textarea id="part1-input" placeholder="e.g. Do you enjoy cooking? Why or why not?"></textarea>
+        <button id="part1-generate">Generate Part 1 Response</button>
+        <article id="part1-output" class="output"></article>
+      </section>
+
+      <section id="part2" class="tab-panel">
+        <h2>Part 2 — Cue Card Long Turn</h2>
+        <p>Paste a cue card. You will receive Band 7 and Band 8 spoken-style model answers.</p>
+        <label for="part2-input">Cue Card Topic</label>
+        <textarea
+          id="part2-input"
+          placeholder="e.g. Describe a place you visited that you would like to go back to."
+        ></textarea>
+        <button id="part2-generate">Generate Part 2 Responses</button>
+        <article id="part2-output" class="output"></article>
+      </section>
+
+      <section id="part3" class="tab-panel">
+        <h2>Part 3 — Discussion & Abstract Reasoning</h2>
+        <p>Paste a Part 3 discussion question and get two perspectives with clear logic.</p>
+        <label for="part3-input">Discussion Question</label>
+        <textarea
+          id="part3-input"
+          placeholder="e.g. How has technology changed the way people learn?"
+        ></textarea>
+        <button id="part3-generate">Generate Part 3 Responses</button>
+        <article id="part3-output" class="output"></article>
+      </section>
+
+      <section id="notebook" class="tab-panel">
+        <h2>Notebook — Memory System</h2>
+        <p>All generated items are automatically saved by part and topic.</p>
+
+        <div class="notebook-controls">
+          <label for="search-input">Search keyword</label>
+          <input id="search-input" type="text" placeholder="Search question, answer, phrase..." />
+
+          <label for="filter-part">Filter by Part</label>
+          <select id="filter-part">
+            <option value="all">All Parts</option>
+            <option value="1">Part 1</option>
+            <option value="2">Part 2</option>
+            <option value="3">Part 3</option>
+          </select>
+        </div>
+
+        <div class="actions-row">
+          <button id="export-pdf" class="secondary">Export Notebook as PDF (A4)</button>
+          <button id="export-docx" class="secondary">Export Notebook as DOCX (A4)</button>
+          <button id="clear-notebook" class="danger">Clear Notebook</button>
+        </div>
+
+        <div id="notebook-output" class="output"></div>
+      </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/docx@9.0.1/dist/index.umd.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
