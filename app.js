@@ -1,315 +1,251 @@
-const storageKey = "ielts-speaking-notebook";
+import * as pdfjsLib from 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.3.136/pdf.min.mjs';
 
-const tabs = document.querySelectorAll(".tab-btn");
-const panels = document.querySelectorAll(".tab-panel");
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.3.136/pdf.worker.min.mjs';
 
-const topicKeywords = {
-  Education: ["school", "study", "learn", "university", "teacher", "education"],
-  Technology: ["technology", "phone", "app", "internet", "online", "computer"],
-  Environment: ["environment", "climate", "pollution", "recycle", "green", "nature"],
-  Travel: ["travel", "trip", "journey", "holiday", "tour", "visit"],
-  Work: ["job", "work", "career", "office", "salary", "boss"],
-  Health: ["health", "exercise", "diet", "sleep", "mental", "fitness"],
+const els = {
+  sourceInput: document.getElementById('sourceInput'),
+  fileInput: document.getElementById('fileInput'),
+  loadTextBtn: document.getElementById('loadTextBtn'),
+  textCanvas: document.getElementById('textCanvas'),
+  answerList: document.getElementById('answerList'),
+  hintToggle: document.getElementById('hintToggle'),
+  copyQuestionsBtn: document.getElementById('copyQuestionsBtn'),
+  copyAnswersBtn: document.getElementById('copyAnswersBtn'),
+  copyBothBtn: document.getElementById('copyBothBtn'),
+  exportDocxBtn: document.getElementById('exportDocxBtn'),
+  exportPdfBtn: document.getElementById('exportPdfBtn'),
+  resetBtn: document.getElementById('resetBtn'),
+  autoDifficultBtn: document.getElementById('autoDifficultBtn'),
+  autoRandomBtn: document.getElementById('autoRandomBtn'),
+  teacherModeBtn: document.getElementById('teacherModeBtn'),
+  studentModeBtn: document.getElementById('studentModeBtn'),
+  saveExerciseBtn: document.getElementById('saveExerciseBtn'),
+  loadExerciseBtn: document.getElementById('loadExerciseBtn'),
 };
 
-const speakingToolkit = {
-  fillers: ["Well,", "Honestly,", "To be fair,", "I mean,", "You know,"],
-  phrases: [
-    "to be honest",
-    "at the end of the day",
-    "I’d say it depends",
-    "one thing I’ve noticed",
-    "it makes a huge difference",
-    "I’m really into",
-  ],
-  collocations: [
-    "heavy workload",
-    "make progress",
-    "daily routine",
-    "strong impression",
-    "social pressure",
-    "time management",
-  ],
-  slang: ["kind of", "super handy", "a game-changer", "not my thing", "pretty chill"],
-  discourse: [
-    "From my point of view,",
-    "On the other hand,",
-    "From a broader perspective,",
-    "That said,",
-  ],
+let state = { originalText: '', tokens: [], blanks: [], teacherMode: true };
+
+const tokenize = (text) => {
+  const parts = text.match(/\r?\n|\s+|\p{L}[\p{L}'’-]*|\p{N}+|[^\s\p{L}\p{N}]/gu) || [];
+  return parts.map((value, idx) => ({ idx, value, isWord: /^\p{L}[\p{L}'’-]*$/u.test(value) }));
 };
 
-function switchTab(targetId) {
-  tabs.forEach((btn) => btn.classList.toggle("active", btn.dataset.tab === targetId));
-  panels.forEach((panel) => panel.classList.toggle("active", panel.id === targetId));
+const isSpeakerLabel = (tokens, i) => tokens[i]?.isWord && tokens[i + 1]?.value === ':';
+
+const buildBlankText = (answer, hint) => {
+  const clean = answer.replace(/\s+/g, ' ').trim();
+  const base = '_'.repeat(Math.max(6, clean.length + 2));
+  return hint && clean ? `${clean[0]}${base}` : base;
+};
+
+function render() {
+  els.textCanvas.innerHTML = '';
+  const blankByToken = new Map();
+  state.blanks.forEach((b, i) => b.tokenIndexes.forEach((t) => blankByToken.set(t, i)));
+
+  state.tokens.forEach((token, i) => {
+    const span = document.createElement('span');
+    if (token.value === '\n' || token.value === '\r\n') {
+      els.textCanvas.append(document.createElement('br'));
+      return;
+    }
+
+    const blankIndex = blankByToken.get(i);
+    if (blankIndex !== undefined) {
+      if (state.blanks[blankIndex].tokenIndexes[0] !== i) return;
+      span.className = 'blank';
+      span.dataset.blank = String(blankIndex);
+      span.textContent = buildBlankText(state.blanks[blankIndex].answer, state.blanks[blankIndex].hint);
+      span.title = 'Click blank to remove';
+      if (!state.teacherMode) span.dataset.student = '1';
+      els.textCanvas.append(span);
+      return;
+    }
+
+    span.textContent = token.value;
+    if (token.isWord) span.classList.add('word');
+    if (isSpeakerLabel(state.tokens, i)) span.classList.add('speaker');
+    span.dataset.token = String(i);
+    els.textCanvas.append(span);
+  });
+
+  renderAnswers();
 }
 
-tabs.forEach((btn) => {
-  btn.addEventListener("click", () => switchTab(btn.dataset.tab));
+function renderAnswers() {
+  els.answerList.innerHTML = '';
+  state.blanks.forEach((blank, i) => {
+    const item = document.createElement('li');
+    item.innerHTML = `<label>#${i + 1}<input data-answer="${i}" value="${blank.answer}" ${state.teacherMode ? '' : 'disabled'} /></label>`;
+    els.answerList.append(item);
+  });
+}
+
+function createBlankFromSelection() {
+  const sel = window.getSelection();
+  if (!sel || sel.isCollapsed || !state.teacherMode) return;
+  const range = sel.getRangeAt(0);
+  const selected = [...els.textCanvas.querySelectorAll('[data-token]')].filter((el) => {
+    const r = document.createRange();
+    r.selectNodeContents(el);
+    return range.compareBoundaryPoints(Range.END_TO_START, r) < 0 && range.compareBoundaryPoints(Range.START_TO_END, r) > 0;
+  });
+  const indexes = selected.map((el) => Number(el.dataset.token)).filter((i) => state.tokens[i].isWord);
+  if (!indexes.length) return;
+
+  const min = Math.min(...indexes);
+  const max = Math.max(...indexes);
+  const phraseTokens = state.tokens.slice(min, max + 1).filter((t) => t.isWord).map((t) => t.idx);
+  if (!phraseTokens.length || state.blanks.some((b) => b.tokenIndexes.some((x) => phraseTokens.includes(x)))) return;
+
+  const answer = state.tokens.slice(min, max + 1).map((t) => t.value).join('').replace(/\s+/g, ' ').trim();
+  state.blanks.push({ tokenIndexes: phraseTokens, answer, hint: els.hintToggle.checked });
+  sel.removeAllRanges();
+  render();
+}
+
+function serializeQuestions() {
+  const blankByToken = new Map();
+  state.blanks.forEach((b, i) => b.tokenIndexes.forEach((t) => blankByToken.set(t, i)));
+  let out = '';
+  for (let i = 0; i < state.tokens.length; i++) {
+    const t = state.tokens[i];
+    if (t.value === '\n' || t.value === '\r\n') {
+      out += '\n';
+      continue;
+    }
+    const bi = blankByToken.get(i);
+    if (bi !== undefined) {
+      if (state.blanks[bi].tokenIndexes[0] !== i) continue;
+      out += `(${bi + 1}) ${buildBlankText(state.blanks[bi].answer, state.blanks[bi].hint)}`;
+      continue;
+    }
+    out += t.value;
+  }
+  return out;
+}
+
+const serializeAnswers = () => state.blanks.map((b, i) => `${i + 1}. ${b.answer}`).join('\n');
+
+async function readPdfText(file) {
+  const data = new Uint8Array(await file.arrayBuffer());
+  const pdf = await pdfjsLib.getDocument({ data }).promise;
+  let text = '';
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    text += `${content.items.map((it) => it.str).join(' ')}\n`;
+  }
+  return text;
+}
+
+async function readDocxText(file) {
+  const arr = await file.arrayBuffer();
+  const res = await window.mammoth.extractRawText({ arrayBuffer: arr });
+  return res.value;
+}
+
+function downloadBlob(filename, blob) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function loadText(text) {
+  state.originalText = text;
+  state.tokens = tokenize(text);
+  state.blanks = [];
+  render();
+}
+
+els.loadTextBtn.addEventListener('click', async () => {
+  const file = els.fileInput.files?.[0];
+  let text = els.sourceInput.value;
+  if (file) {
+    if (file.name.toLowerCase().endsWith('.pdf')) text = await readPdfText(file);
+    if (file.name.toLowerCase().endsWith('.docx')) text = await readDocxText(file);
+    els.sourceInput.value = text;
+  }
+  loadText(text);
 });
 
-function detectTopic(text) {
-  const lower = text.toLowerCase();
-  for (const [topic, words] of Object.entries(topicKeywords)) {
-    if (words.some((word) => lower.includes(word))) return topic;
+els.textCanvas.addEventListener('mouseup', createBlankFromSelection);
+els.textCanvas.addEventListener('click', (e) => {
+  if (!state.teacherMode) return;
+  const blankEl = e.target.closest('.blank');
+  if (!blankEl) return;
+  state.blanks.splice(Number(blankEl.dataset.blank), 1);
+  render();
+});
+
+els.answerList.addEventListener('input', (e) => {
+  const idx = e.target.dataset.answer;
+  if (idx === undefined) return;
+  state.blanks[Number(idx)].answer = e.target.value;
+  render();
+});
+
+els.copyQuestionsBtn.addEventListener('click', () => navigator.clipboard.writeText(serializeQuestions()));
+els.copyAnswersBtn.addEventListener('click', () => navigator.clipboard.writeText(serializeAnswers()));
+els.copyBothBtn.addEventListener('click', () => navigator.clipboard.writeText(`${serializeQuestions()}\n\nAnswer Key\n${serializeAnswers()}`));
+
+els.exportDocxBtn.addEventListener('click', async () => {
+  const { Document, Packer, Paragraph, TextRun } = window.docx;
+  const doc = new Document({ sections: [{ children: [new Paragraph({ children: [new TextRun(serializeQuestions())] }), new Paragraph(''), new Paragraph('Answer Key'), new Paragraph(serializeAnswers())] }] });
+  downloadBlob('ielts-gap-fill.docx', await Packer.toBlob(doc));
+});
+
+els.exportPdfBtn.addEventListener('click', () => {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const content = `${serializeQuestions()}\n\nAnswer Key\n${serializeAnswers()}`;
+  const lines = doc.splitTextToSize(content, 180);
+  doc.text(lines, 15, 15);
+  doc.save('ielts-gap-fill.pdf');
+});
+
+els.resetBtn.addEventListener('click', () => loadText(state.originalText));
+els.autoDifficultBtn.addEventListener('click', () => {
+  const difficult = state.tokens.filter((t) => t.isWord && t.value.length >= 8).slice(0, 10);
+  difficult.forEach((token) => {
+    if (!state.blanks.some((b) => b.tokenIndexes.includes(token.idx))) {
+      state.blanks.push({ tokenIndexes: [token.idx], answer: token.value, hint: els.hintToggle.checked });
+    }
+  });
+  render();
+});
+els.autoRandomBtn.addEventListener('click', () => {
+  const words = state.tokens.filter((t) => t.isWord);
+  const n = Math.min(words.length, Math.floor(Math.random() * 6) + 5);
+  for (const token of [...words].sort(() => Math.random() - 0.5).slice(0, n)) {
+    if (!state.blanks.some((b) => b.tokenIndexes.includes(token.idx))) {
+      state.blanks.push({ tokenIndexes: [token.idx], answer: token.value, hint: els.hintToggle.checked });
+    }
   }
-  return "General";
-}
+  render();
+});
 
-function pickRandom(list, count) {
-  return [...list].sort(() => Math.random() - 0.5).slice(0, count);
-}
+els.teacherModeBtn.addEventListener('click', () => {
+  state.teacherMode = true;
+  els.teacherModeBtn.classList.add('active');
+  els.studentModeBtn.classList.remove('active');
+  render();
+});
+els.studentModeBtn.addEventListener('click', () => {
+  state.teacherMode = false;
+  els.studentModeBtn.classList.add('active');
+  els.teacherModeBtn.classList.remove('active');
+  render();
+});
 
-function createList(items, title) {
-  return `
-    <h4>${title}</h4>
-    <ul>${items.map((item) => `<li>${item}</li>`).join("")}</ul>
-  `;
-}
-
-function nowISO() {
-  return new Date().toISOString();
-}
-
-function loadNotebook() {
-  try {
-    return JSON.parse(localStorage.getItem(storageKey)) || [];
-  } catch {
-    return [];
-  }
-}
-
-function saveNotebook(items) {
-  localStorage.setItem(storageKey, JSON.stringify(items));
-}
-
-function appendNotebook(entry) {
-  const items = loadNotebook();
-  items.unshift(entry);
-  saveNotebook(items);
-  renderNotebook();
-}
-
-function baseLanguagePack() {
-  return {
-    phrases: pickRandom(speakingToolkit.phrases, 5),
-    collocations: pickRandom(speakingToolkit.collocations, 4),
-    slang: pickRandom(speakingToolkit.slang, 3),
-  };
-}
-
-function generatePart1(question) {
-  const opener = pickRandom(speakingToolkit.fillers, 1)[0];
-  const naturalAnswer = `${opener} I’d say yes, mostly. In my daily life, ${question
-    .replace("?", "")
-    .toLowerCase()} comes up quite often, so I try to keep it simple and consistent. It’s not perfect every day, but it works for me.`;
-
-  const expansion = [
-    "Give one quick personal example from this week.",
-    "Add a contrast: what you liked before vs now.",
-    "Mention one challenge and how you deal with it.",
-  ];
-
-  return {
-    answer: naturalAnswer,
-    ...baseLanguagePack(),
-    expansion,
-  };
-}
-
-function generatePart2(cueCard) {
-  const topic = detectTopic(cueCard);
-  const commonStory = `I’m going to talk about ${cueCard
-    .replace("Describe", "a time when I")
-    .replace("?", "")}. The first time was a bit unexpected, but it left a strong impression on me.`;
-
-  const band7 = `${commonStory} I remember the main details clearly: where it happened, who was there, and why it mattered. I kept things simple, stayed calm, and just focused on enjoying the moment. Looking back, it was meaningful because it taught me to appreciate small experiences instead of overthinking everything.`;
-
-  const band8 = `${commonStory} What made it special was the mix of emotions at the time—part excitement, part uncertainty. As the situation developed, I became more aware of the little details, like the atmosphere and people’s reactions. In hindsight, it was a real turning point because it changed how I approach similar situations now: with more confidence, flexibility, and gratitude.`;
-
-  return {
-    topic,
-    band7,
-    band8,
-    links: [
-      "To start with",
-      "What stands out most is...",
-      "The thing is...",
-      "Looking back,",
-      "All in all,",
-    ],
-    vocabBank: pickRandom(
-      [
-        "memorable occasion",
-        "vivid detail",
-        "mixed feelings",
-        "turning point",
-        "sense of achievement",
-        "keep the momentum",
-      ],
-      6,
-    ),
-    ...baseLanguagePack(),
-  };
-}
-
-function generatePart3(question) {
-  const topic = detectTopic(question);
-  const p1 = "Well, it really depends on the context.";
-  const p2 = "From a broader perspective, there are both benefits and trade-offs.";
-
-  const band7 = `${p1} On one side, ${topic.toLowerCase()} can improve people’s lives in practical ways, especially when access and cost are reasonable. On the other side, there can be pressure, inequality, or unintended effects, so I think balance is key.`;
-
-  const band8 = `${p1} ${p2} If we look at individuals, the impact is often immediate and personal, like convenience or better opportunities. However, at a social level, the same trend may widen gaps between different groups. That’s why I’d argue for smart policies and personal responsibility at the same time.`;
-
-  return {
-    topic,
-    perspectives: ["Individual-level impact", "Society-level impact"],
-    band7,
-    band8,
-    markers: pickRandom(speakingToolkit.discourse, 4),
-    ...baseLanguagePack(),
-  };
-}
-
-function renderPart1Output(result) {
-  return `
-    <div class="card">
-      <h3>Natural Short Answer</h3>
-      <p>${result.answer}</p>
-      ${createList(result.phrases, "Useful Phrases (5)")}
-      ${createList(result.collocations, "Collocations (4)")}
-      ${createList(result.slang, "Spoken / Informal Expressions (3)")}
-      ${createList(result.expansion, "Optional Follow-up Ideas")}
-    </div>
-  `;
-}
-
-function renderPart2Output(result) {
-  return `
-    <div class="card">
-      <h3><span class="badge part">Part 2</span><span class="badge topic">${result.topic}</span></h3>
-      <h4>Band 7 Sample</h4>
-      <p>${result.band7}</p>
-      <h4>Band 8 Sample</h4>
-      <p>${result.band8}</p>
-      ${createList(result.links, "Fluency Linking Phrases")}
-      ${createList(result.vocabBank, "Topic Vocabulary Bank")}
-      ${createList(result.phrases, "Useful Phrases (5)")}
-      ${createList(result.collocations, "Collocations (4)")}
-      ${createList(result.slang, "Spoken / Informal Expressions (3)")}
-    </div>
-  `;
-}
-
-function renderPart3Output(result) {
-  return `
-    <div class="card">
-      <h3><span class="badge part">Part 3</span><span class="badge topic">${result.topic}</span></h3>
-      ${createList(result.perspectives, "Multi-Angle Discussion")}
-      <h4>Band 7 Version</h4>
-      <p>${result.band7}</p>
-      <h4>Band 8 Version</h4>
-      <p>${result.band8}</p>
-      ${createList(result.markers, "Native-like Discourse Markers")}
-      ${createList(result.phrases, "Useful Phrases (5)")}
-      ${createList(result.collocations, "Collocations (4)")}
-      ${createList(result.slang, "Spoken / Informal Expressions (3)")}
-    </div>
-  `;
-}
-
-function saveGenerated(part, input, result, htmlPreview) {
-  const entry = {
-    id: crypto.randomUUID(),
-    part,
-    topic: detectTopic(input),
-    input,
-    result,
-    htmlPreview,
-    createdAt: nowISO(),
-  };
-  appendNotebook(entry);
-}
-
-function renderNotebook() {
-  const search = document.querySelector("#search-input").value.trim().toLowerCase();
-  const filter = document.querySelector("#filter-part").value;
-
-  const container = document.querySelector("#notebook-output");
-  const items = loadNotebook().filter((entry) => {
-    const byPart = filter === "all" || String(entry.part) === filter;
-    const blob = `${entry.input} ${JSON.stringify(entry.result)}`.toLowerCase();
-    const bySearch = !search || blob.includes(search);
-    return byPart && bySearch;
-  });
-
-  if (items.length === 0) {
-    container.innerHTML = "<p class='meta'>No notebook items match your filter.</p>";
-    return;
-  }
-
-  container.innerHTML = items
-    .map(
-      (entry) => `
-      <div class="card">
-        <div>
-          <span class="badge part">Part ${entry.part}</span>
-          <span class="badge topic">${entry.topic}</span>
-        </div>
-        <p class="meta">Saved: ${new Date(entry.createdAt).toLocaleString()}</p>
-        <p><strong>Question / Prompt:</strong> ${entry.input}</p>
-        <details>
-          <summary>Reuse expressions and answer content</summary>
-          ${entry.htmlPreview}
-        </details>
-      </div>
-    `,
-    )
-    .join("");
-}
-
-function bindGenerateButtons() {
-  document.querySelector("#part1-generate").addEventListener("click", () => {
-    const input = document.querySelector("#part1-input").value.trim();
-    if (!input) return;
-
-    const result = generatePart1(input);
-    const html = renderPart1Output(result);
-    document.querySelector("#part1-output").innerHTML = html;
-    saveGenerated(1, input, result, html);
-  });
-
-  document.querySelector("#part2-generate").addEventListener("click", () => {
-    const input = document.querySelector("#part2-input").value.trim();
-    if (!input) return;
-
-    const result = generatePart2(input);
-    const html = renderPart2Output(result);
-    document.querySelector("#part2-output").innerHTML = html;
-    saveGenerated(2, input, result, html);
-  });
-
-  document.querySelector("#part3-generate").addEventListener("click", () => {
-    const input = document.querySelector("#part3-input").value.trim();
-    if (!input) return;
-
-    const result = generatePart3(input);
-    const html = renderPart3Output(result);
-    document.querySelector("#part3-output").innerHTML = html;
-    saveGenerated(3, input, result, html);
-  });
-}
-
-function bindNotebookControls() {
-  document.querySelector("#search-input").addEventListener("input", renderNotebook);
-  document.querySelector("#filter-part").addEventListener("change", renderNotebook);
-  document.querySelector("#clear-notebook").addEventListener("click", () => {
-    localStorage.removeItem(storageKey);
-    renderNotebook();
-  });
-}
-
-bindGenerateButtons();
-bindNotebookControls();
-renderNotebook();
+els.saveExerciseBtn.addEventListener('click', () => {
+  localStorage.setItem('ielts-gap-fill', JSON.stringify(state));
+});
+els.loadExerciseBtn.addEventListener('click', () => {
+  const saved = localStorage.getItem('ielts-gap-fill');
+  if (!saved) return;
+  state = JSON.parse(saved);
+  render();
+});
